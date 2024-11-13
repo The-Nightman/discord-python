@@ -27,5 +27,9 @@ class Settings(BaseSettings):
             port=self.POSTGRES_PORT,
             path=self.POSTGRES_DB,
         )
+    
+    FIRST_SUPERUSER=str
+    FIRST_SUPERUSER_USERNAME=str
+    FIRST_SUPERUSER_PASSWORD=str
 
 settings = Settings()
