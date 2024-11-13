@@ -1,0 +1,10 @@
+# .gitignore sourced from fastapi/full-stack-fastapi-template repo
+# https://github.com/fastapi/full-stack-fastapi-template/blob/master/backend/.gitignore
+__pycache__
+app.egg-info
+*.pyc
+.mypy_cache
+.coverage
+htmlcov
+.cache
+.venv
