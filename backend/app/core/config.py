@@ -12,11 +12,16 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    PROJECT_NAME: str
+    API_V1_STR: str = "/api/v1"
+
+
     POSTGRES_SERVER: str
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str = ""
     POSTGRES_DB: str = ""
+
 
     def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
         return MultiHostUrl.build(
@@ -27,9 +32,14 @@ class Settings(BaseSettings):
             port=self.POSTGRES_PORT,
             path=self.POSTGRES_DB,
         )
-    
-    FIRST_SUPERUSER=str
-    FIRST_SUPERUSER_USERNAME=str
-    FIRST_SUPERUSER_PASSWORD=str
+
+
+    FIRST_SUPERUSER: str
+    FIRST_SUPERUSER_USERNAME: str
+    FIRST_SUPERUSER_PASSWORD: str
+
+
+    LOGGING_ENABLED: bool = True
+    LOGGING_LEVEL: str = "INFO"
 
 settings = Settings()
