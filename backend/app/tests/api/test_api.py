@@ -11,7 +11,7 @@ def test_pytest_function():
     assert bool("true") == True
 
 
-def test_read_main():
+def test_api_is_live():
     response = client.get("/")
     assert response.status_code == 200
     assert response.json() == {"message": "Hello World"}
