@@ -143,3 +143,14 @@ class Message(MessageBase, table=True):
     author_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
     channel_id: uuid.UUID = Field(foreign_key="channel.id", nullable=False)
     channel: Channel = Relationship(back_populates="messages")
+
+
+# Jwt token
+class Token(SQLModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+# Jwt token data
+class TokenData(SQLModel):
+    sub: str | None = None

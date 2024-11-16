@@ -1,4 +1,4 @@
-
+import secrets
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import PostgresDsn
 from pydantic_core import MultiHostUrl
@@ -15,6 +15,10 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str
     API_V1_STR: str = "/api/v1"
+
+    SECRET_KEY: str = secrets.token_urlsafe(32)
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 12  # 12 hours
 
     POSTGRES_SERVER: str
     POSTGRES_PORT: int = 5432

@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.core.config import settings
 from app.initial_data import main as db_init
+from app.api.main import api_router
 
 
 @asynccontextmanager
@@ -21,6 +22,8 @@ app = FastAPI(
 )
 
 
-@app.get("/")
+@app.get("/", tags=["root"])
 async def root():
     return {"message": "Hello World"}
+
+app.include_router(api_router, prefix=settings.API_V1_STR)
