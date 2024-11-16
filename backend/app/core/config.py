@@ -31,6 +31,22 @@ class Settings(BaseSettings):
             port=self.POSTGRES_PORT,
             path=self.POSTGRES_DB,
         )
+    
+    TEST_POSTGRES_SERVER: str
+    TEST_POSTGRES_PORT: int = 5432
+    TEST_POSTGRES_USER: str
+    TEST_POSTGRES_PASSWORD: str = ""
+    TEST_POSTGRES_DB: str = ""
+
+    def TEST_SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
+        return MultiHostUrl.build(
+            scheme="postgresql+psycopg2",
+            username=self.TEST_POSTGRES_USER,
+            password=self.TEST_POSTGRES_PASSWORD,
+            host=self.TEST_POSTGRES_SERVER,
+            port=self.TEST_POSTGRES_PORT,
+            path=self.TEST_POSTGRES_DB,
+        )
 
     FIRST_SUPERUSER: str
     FIRST_SUPERUSER_USERNAME: str
