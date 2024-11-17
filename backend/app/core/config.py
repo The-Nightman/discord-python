@@ -61,5 +61,9 @@ class Settings(BaseSettings):
         lambda self: self.LOGGING_ENABLED.lower() in ["true", "1"])
     LOGGING_LEVEL: str = "INFO"
 
+    TEST_USER: str
+    TEST_USER_USERNAME: str
+    TEST_USER_PASSWORD: str
+
 
 settings = Settings()
