@@ -106,6 +106,7 @@ export const Login = (): JSX.Element => {
     event: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     event.preventDefault(); // Prevent the page from refreshing on submit
+    setError({ state: false, message: "" }); // Reset the error state incase of previous errors with a still open toast
     setLoading(true); // Set loading state to true
 
     // Construct the url formdata
