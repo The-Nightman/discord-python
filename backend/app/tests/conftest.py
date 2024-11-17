@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.db import init_db
 from app.api.deps import get_db
 from app.models import User, Server, UserServerLink, Message
+from app.tests.utils.users import inject_test_user, user_authentication_headers
 from sqlmodel import Session, create_engine, delete, SQLModel
 from sqlalchemy_utils import database_exists, create_database
 
@@ -30,6 +31,7 @@ logger.info("Test database tables created")
 def db() -> Generator[Session, None, None]:
     with Session(test_engine) as session:
         init_db(session)
+        inject_test_user(session)
         yield session
         statement = delete(User)
         session.exec(statement)
@@ -42,7 +44,7 @@ def db() -> Generator[Session, None, None]:
         session.commit()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def client(db: Session) -> Generator[TestClient, None, None]:
 
     # Override the testclient db dependency with the test db
@@ -53,3 +55,8 @@ def client(db: Session) -> Generator[TestClient, None, None]:
 
     # Clear the dependency overrides after the test is done
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="module")
+def normal_user_token_headers(client: TestClient) -> dict[str, str]:
+    return user_authentication_headers(client=client, email=settings.TEST_USER, password=settings.TEST_USER_PASSWORD)

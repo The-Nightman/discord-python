@@ -38,6 +38,10 @@ class User(UserBase, table=True):
     servers: list["UserServerLink"] = Relationship(back_populates="user")
 
 
+class UserPublic(UserBase):
+    id: uuid.UUID
+
+
 # Shared properties
 class ServerBase(SQLModel):
     name: str = Field(max_length=100, nullable=False)
