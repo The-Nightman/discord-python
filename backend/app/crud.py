@@ -41,3 +41,18 @@ def authenticate(*, session: Session, email: str, password: str) -> User:
     if not password_validation(password, user.hashed_password):
         return False
     return user
+
+
+def get_user_by_email(*, session: Session, email: str) -> User:
+    """
+    Get a user by email.
+
+    Args:
+        session (Session): The database session to use for the operation.
+        email (str): The email of the user to retrieve.
+
+    Returns:
+        User: The user object.
+    """
+    user = session.exec(select(User).where(User.email == email)).first()
+    return user
