@@ -2,6 +2,7 @@ import axios from "axios";
 import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { Toast } from "../../components/UX/Toast";
+import { Spinner } from "../../components/UX/Spinner";
 
 interface FormData {
   username: string;
@@ -38,6 +39,7 @@ export const Login = (): JSX.Element => {
     username: "",
     password: "",
   });
+  const [loading, setLoading] = useState<boolean>(false);
   const { login } = useAuth();
 
   /**
@@ -104,6 +106,7 @@ export const Login = (): JSX.Element => {
     event: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     event.preventDefault(); // Prevent the page from refreshing on submit
+    setLoading(true); // Set loading state to true
 
     // Construct the url formdata
     const params = new URLSearchParams();
@@ -119,8 +122,10 @@ export const Login = (): JSX.Element => {
           { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
         );
       login(data.access_token);
+      setLoading(false); // Set loading state to false
       // TODO: Not yet fully implemented, navigate to the dashboard on success
     } catch (error) {
+      setLoading(false); // Set loading state to false
       // This gives us access to AxiosError properties interfaces
       if (axios.isAxiosError(error)) {
         // Check if error.response is defined
@@ -219,6 +224,7 @@ export const Login = (): JSX.Element => {
           Login
         </button>
       </form>
+      {loading && (<Spinner />)}
     </>
   );
 };
