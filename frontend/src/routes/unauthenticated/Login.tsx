@@ -1,8 +1,9 @@
 import axios from "axios";
-import React, { useState } from "react";
+import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { Toast } from "../../components/UX/Toast";
 import { Spinner } from "../../components/UX/Spinner";
+import { Link } from "react-router-dom";
 
 interface FormData {
   username: string;
@@ -145,7 +146,7 @@ export const Login = (): JSX.Element => {
   };
 
   return (
-    <>
+    <main className="min-w-72">
       <Toast
         show={error.state}
         message={error.message}
@@ -225,7 +226,13 @@ export const Login = (): JSX.Element => {
           Login
         </button>
       </form>
-      {loading && (<Spinner />)}
-    </>
+      <div className="flex gap-1 mt-4">
+        <p className="text-white text-xs">Don't have an account?</p>
+        <Link className="text-xs text-[#5CD6FE] hover:underline" to={"/register"}>
+          Sign Up Here
+        </Link>
+      </div>
+      {loading && <Spinner />}
+    </main>
   );
 };
