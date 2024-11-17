@@ -5,6 +5,7 @@ from app.main import app
 from app.core.logger import logger
 from app.core.config import settings
 from app.core.db import init_db
+from app.api.deps import get_db
 from app.models import User, Server, UserServerLink, Message
 from sqlmodel import Session, create_engine, delete, SQLModel
 from sqlalchemy_utils import database_exists, create_database
@@ -24,6 +25,7 @@ if not database_exists(test_engine.url):
 SQLModel.metadata.create_all(test_engine)
 logger.info("Test database tables created")
 
+
 @pytest.fixture(scope="session", autouse=True)
 def db() -> Generator[Session, None, None]:
     with Session(test_engine) as session:
@@ -41,6 +43,13 @@ def db() -> Generator[Session, None, None]:
 
 
 @pytest.fixture(scope="session")
-def client() -> Generator[TestClient, None, None]:
+def client(db: Session) -> Generator[TestClient, None, None]:
+
+    # Override the testclient db dependency with the test db
+    app.dependency_overrides[get_db] = lambda: db
+
     with TestClient(app) as c:
         yield c
+
+    # Clear the dependency overrides after the test is done
+    app.dependency_overrides.clear()
