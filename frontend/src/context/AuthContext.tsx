@@ -18,8 +18,8 @@ interface AuthProviderProps {
 interface AuthContextInterface {
   user: User;
   login: (jwt: string) => void;
+  validateAuth: () => Promise<boolean>;
   logout: () => void;
-  loading: boolean;
 }
 
 /**
@@ -28,7 +28,7 @@ interface AuthContextInterface {
  * This context is used to manage and access the authentication state
  * and related functionalities throughout the application.
  *
- * @type {AuthContextInterface | undefined}
+ * @type {Context<AuthContextInterface | undefined>}
  */
 const AuthContext = createContext<AuthContextInterface | undefined>(undefined);
 
@@ -41,12 +41,12 @@ const AuthContext = createContext<AuthContextInterface | undefined>(undefined);
  * @returns {JSX.Element} The AuthProvider component with authentication context.
  *
  * @remarks
- * This code is repurposed from my `IBDirect` project at:
+ * This code is repurposed and refactored from my `IBDirect` project at:
  * https://github.com/The-Nightman/IBDirect/blob/main/src/context/AuthContext.tsx
  *
  * This component uses the `useState` and `useEffect` hooks to manage the authentication state.
  * It checks for a JWT token in local storage and decodes it to set the user state.
- * It also provides `login` and `logout` functions to manage the authentication state.
+ * It also provides `login`, `validateAuth` and `logout` functions to manage the authentication state.
  *
  * @example
  * ```tsx
@@ -63,24 +63,15 @@ const AuthContext = createContext<AuthContextInterface | undefined>(undefined);
  */
 export const AuthProvider = ({ children }: AuthProviderProps): JSX.Element => {
   const [user, setUser] = useState<User>({ userID: null });
-  const [loading, setLoading] = useState(true);
 
-  // Check for JWT token in local storage and set user state on mount
+  // Re-use the validateAuth function to check if a JWT is stored in local storage
+  // on component mount and store the userID in the user state if the JWT is valid.
   useEffect(() => {
-    const jwt = localStorage.getItem("jwt");
-    // Use a timeout to prevent flashing back to the login screen when refreshing due to failing protected routes checks
-    setTimeout(() => {
-      if (jwt) {
-        const decodedToken: { exp: number; sub: string } = jwtDecode(jwt);
-        // Check if the token is expired
-        if (decodedToken.exp * 1000 > Date.now()) {
-          setUser({ userID: decodedToken.sub });
-        } else {
-          localStorage.removeItem("jwt");
-        }
-      }
-      setLoading(false);
-    }, 1000);
+    const checkAuth = async () => {
+      await validateAuth();
+    };
+
+    checkAuth();
   }, []);
 
   /**
@@ -96,9 +87,35 @@ export const AuthProvider = ({ children }: AuthProviderProps): JSX.Element => {
   };
 
   /**
+   * Validates the authentication status of the user by checking the JWT token stored in local storage.
+   *
+   * - If a valid JWT token is found and it is not expired, the user is considered authenticated.
+   * - If the JWT token is expired or not found, the user is considered unauthenticated and the token is removed from local storage.
+   *
+   * @remarks This alone does not protect against invalid modified JWT tokens but this should be taken care of with propper backend auth.
+   *
+   * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the user is authenticated.
+   */
+  const validateAuth = async (): Promise<boolean> => {
+    const jwt = localStorage.getItem("jwt");
+    if (jwt) {
+      const decodedToken: { exp: number; sub: string } = jwtDecode(jwt);
+      if (decodedToken.exp * 1000 > Date.now()) {
+        setUser({ userID: decodedToken.sub });
+        return true; // User is authenticated
+      }
+      // Remove the JWT if it is expired
+      localStorage.removeItem("jwt");
+      setUser({ userID: null });
+      return false;
+    }
+    return false;
+  };
+
+  /**
    * Logs out the current user by removing the JWT from local storage
    * and resetting the user state.
-   * 
+   *
    * @returns {void}
    */
   const logout = (): void => {
@@ -107,7 +124,7 @@ export const AuthProvider = ({ children }: AuthProviderProps): JSX.Element => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, validateAuth, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -118,6 +135,6 @@ export const AuthProvider = ({ children }: AuthProviderProps): JSX.Element => {
  *
  * @returns {AuthContextInterface} The current authentication context value.
  */
-export const useAuth = () => {
+export const useAuth = (): AuthContextInterface => {
   return useContext(AuthContext) as AuthContextInterface;
 };
