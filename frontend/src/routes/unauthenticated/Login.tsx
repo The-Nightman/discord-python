@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { Toast } from "../../components/UX/Toast";
 import { Spinner } from "../../components/UX/Spinner";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 interface FormData {
   username: string;
@@ -42,6 +42,7 @@ export const Login = (): JSX.Element => {
   });
   const [loading, setLoading] = useState<boolean>(false);
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   /**
    * Handles the change event for input elements and updates the form data state.
@@ -125,7 +126,7 @@ export const Login = (): JSX.Element => {
         );
       login(data.access_token);
       setLoading(false); // Set loading state to false
-      // TODO: Not yet fully implemented, navigate to the dashboard on success
+      navigate("/app"); // Navigate to the dashboard on success
     } catch (error) {
       setLoading(false); // Set loading state to false
       // This gives us access to AxiosError properties interfaces

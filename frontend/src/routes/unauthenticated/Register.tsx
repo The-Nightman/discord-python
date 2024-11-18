@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { Toast } from "../../components/UX/Toast";
 import { Spinner } from "../../components/UX/Spinner";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 interface FormData {
   email: string;
@@ -44,6 +44,7 @@ export const Register = (): JSX.Element => {
   });
   const [loading, setLoading] = useState<boolean>(false);
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   /**
    * Handles the change event for input elements and updates the form data state.
@@ -97,7 +98,7 @@ export const Register = (): JSX.Element => {
    *
    * Prevents the default form submission behavior, constructs the request parameters,
    * and sends a POST request to the register API endpoint. On successful registration,
-   * it calls the `login` function with the access token. If an error occurs, it sets 
+   * it calls the `login` function with the access token. If an error occurs, it sets
    * the error state with an appropriate message.
    *
    * @param {React.FormEvent<HTMLFormElement>} event - The form submission event.
@@ -119,7 +120,7 @@ export const Register = (): JSX.Element => {
         );
       login(data.access_token);
       setLoading(false); // Set loading state to false
-      // TODO: Not yet fully implemented, navigate to the dashboard on success
+      navigate("/app"); // Navigate to the dashboard on success
     } catch (error) {
       setLoading(false); // Set loading state to false
       // This gives us access to AxiosError properties interfaces
