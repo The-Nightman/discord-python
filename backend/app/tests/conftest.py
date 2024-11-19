@@ -6,7 +6,7 @@ from app.core.logger import logger
 from app.core.config import settings
 from app.core.db import init_db
 from app.api.deps import get_db
-from app.models import User, Server, UserServerLink, Message, Channel
+from app.models import User, Server, UserServerLink, Message, Channel, ServerInvite
 from app.tests.utils.users import inject_test_user, user_authentication_headers
 from sqlmodel import Session, create_engine, delete, SQLModel
 from sqlalchemy_utils import database_exists, create_database
@@ -34,6 +34,8 @@ def db() -> Generator[Session, None, None]:
         inject_test_user(session)
         yield session
         statement = delete(UserServerLink)
+        session.exec(statement)
+        statement = delete(ServerInvite)
         session.exec(statement)
         statement = delete(User)
         session.exec(statement)
