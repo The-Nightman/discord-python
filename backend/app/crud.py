@@ -1,6 +1,8 @@
 import uuid
+import random
+import string
 from sqlmodel import Session, select, delete
-from app.models import User, UserCreate, Server, UserServerLink, Channel
+from app.models import User, UserCreate, Server, UserServerLink, Channel, ServerInviteCreate, ServerInvite
 from app.core.security import get_password_hash, password_validation
 
 
@@ -158,6 +160,28 @@ def update_server_name(*, session: Session, server_id: Server, name_in: str) -> 
     return server
 
 
+def create_invite(*, session: Session, creator_id: uuid.UUID, invite_data: ServerInviteCreate) -> ServerInvite:
+    """
+    Create an invite for a server.
+
+    Args:
+        session (Session): The database session to use for the operation.
+        creator_id (uuid.UUID): The UUID of the user creating the invite.
+        invite_data (ServerInviteCreate): An object containing the details of the invite to be created.
+
+    Returns:
+        str: The invite code.
+    """
+    invite = ServerInvite.model_validate(invite_data,
+                                         update={
+                                             "creator_id": creator_id,
+                                         })
+    session.add(invite)
+    session.commit()
+    session.refresh(invite)
+    return invite
+
+
 def delete_server_by_id(*, session: Session, server_id: uuid.UUID) -> None:
     """
     Delete a server by ID.
@@ -173,6 +197,8 @@ def delete_server_by_id(*, session: Session, server_id: uuid.UUID) -> None:
             session.exec(delete(UserServerLink).where(
                 UserServerLink.server_id == server_id))
             session.exec(delete(Channel).where(Channel.server_id == server_id))
+            session.exec(delete(ServerInvite).where(
+                ServerInvite.server_id == server_id))
             # Messages are deleted via cascade
             server = session.get(Server, server_id)
             session.delete(server)
