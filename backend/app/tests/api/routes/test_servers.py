@@ -26,6 +26,17 @@ def test_create_server(client: TestClient, normal_user_token_headers: dict[str, 
     assert user_link.role == "owner"
 
 
+def test_get_server_by_id(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
+    server = db.exec(select(Server)).first()
+    response = client.get(f"/api/v1/servers/{server.id}", headers=normal_user_token_headers)
+    server_response = response.json()
+    assert response.status_code == 200
+    assert server_response["name"] == server.name
+    assert server_response["id"] == str(server.id)
+    assert "channels" in server_response
+    assert "members" in server_response
+
+
 def test_rename_server(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
     # Currently reads the server created in the previous test, fails if run alone, will be refactored later
     server = db.exec(select(Server)).first()
