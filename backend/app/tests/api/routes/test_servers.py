@@ -24,3 +24,19 @@ def test_create_server(client: TestClient, normal_user_token_headers: dict[str, 
     assert user_link.user_id == owner_user.id
     assert user_link.server_id == server.id
     assert user_link.role == "owner"
+
+
+def test_rename_server(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
+    # Currently reads the server created in the previous test, fails if run alone, will be refactored later
+    server = db.exec(select(Server)).first()
+    response = client.patch(f"/api/v1/servers/{server.id}/update", headers=normal_user_token_headers, json={"name": "new_name"})
+    server_response = response.json()
+    assert response.status_code == 200
+    assert server_response["name"] == "new_name"
+    assert server_response["id"] == str(server.id)
+
+    # Check that the server was updated in the database
+    updated_server = db.exec(select(Server).where(Server.id == server.id)).first()
+    assert updated_server is not None
+    assert updated_server.name == "new_name"
+    assert updated_server.id == server.id
