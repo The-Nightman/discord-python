@@ -69,3 +69,24 @@ async def update_server(session: SessionDep, current_user: CurrentUser, server_i
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"An error occured: {str(e)}") from e
+
+
+@router.delete("/{server_id}/delete", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_server(session: SessionDep, current_user: CurrentUser, server_id: str) -> None:
+    """
+    Delete a server, limited to the server owner
+    """
+    try:
+        if crud.user_is_owner(session=session, user_id=current_user.id, server_id=server_id) == False:
+            raise HTTPException(
+                status_code=403, detail="You do not have permission to delete this server.")
+        crud.delete_server_by_id(session=session, server_id=server_id)
+        return None
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=500, detail="An unknown database error has occured, if this persists please contact support.")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"An error occured: {str(e)}") from e
