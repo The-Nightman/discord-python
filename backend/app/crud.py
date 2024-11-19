@@ -1,6 +1,5 @@
 import uuid
-from sqlmodel import Session, select
-from sqlalchemy.orm import joinedload
+from sqlmodel import Session, select, delete
 from app.models import User, UserCreate, Server, UserServerLink, Channel
 from app.core.security import get_password_hash, password_validation
 
@@ -157,3 +156,30 @@ def update_server_name(*, session: Session, server_id: Server, name_in: str) -> 
     session.commit()
     session.refresh(server)
     return server
+
+
+def delete_server_by_id(*, session: Session, server_id: uuid.UUID) -> None:
+    """
+    Delete a server by ID.
+
+    Args:
+        session (Session): The database session to use for the operation.
+        server_id (uuid.UUID): The UUID of the server to delete.
+    """
+    try:
+        # Use begin_nested() to run the transaction, begin() does not work in a try catch block
+        # See examples here: https://docs.sqlalchemy.org/en/20/orm/session_transaction.html#using-savepoint
+        with session.begin_nested():
+            session.exec(delete(UserServerLink).where(
+                UserServerLink.server_id == server_id))
+            session.exec(delete(Channel).where(Channel.server_id == server_id))
+            # Messages are deleted via cascade
+            server = session.get(Server, server_id)
+            session.delete(server)
+        session.commit()
+        return None
+    except Exception as e:
+        session.rollback()
+        raise e
+    finally:
+        session.close()
