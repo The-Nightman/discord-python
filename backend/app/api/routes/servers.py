@@ -2,7 +2,7 @@ from fastapi import APIRouter, status, HTTPException
 from typing import Any
 from sqlalchemy.exc import SQLAlchemyError
 from app.api.deps import SessionDep, CurrentUser
-from app.models import ServerCreate, Server, ServerUpdate, ServerPublic
+from app.models import ServerCreate, ServerInviteCreate, ServerUpdate, ServerPublic
 from app import crud
 
 router = APIRouter()
@@ -38,6 +38,23 @@ async def create_server(session: SessionDep, current_user: CurrentUser, server_d
         server = crud.create_server(
             session=session, user_id=current_user.id, server_name=server_data.name)
         return server
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=500, detail="An unknown database error has occured, if this persists please contact support.")
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"An error occured: {str(e)}") from e
+
+
+@router.post("/{server_id}/invite", status_code=status.HTTP_201_CREATED)
+async def create_invite(session: SessionDep, current_user: CurrentUser, invite_data: ServerInviteCreate) -> dict[str, str]:
+    """
+    Create an invite for a server
+    """
+    try:
+        invite = crud.create_invite(
+            session=session, creator_id=current_user.id, invite_data=invite_data)
+        return {"invite_code": f"invite::{invite.invite_code}:{invite.server_id}"}
     except SQLAlchemyError as e:
         raise HTTPException(
             status_code=500, detail="An unknown database error has occured, if this persists please contact support.")
