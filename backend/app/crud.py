@@ -1,5 +1,6 @@
 import uuid
 from sqlmodel import Session, select
+from sqlalchemy.orm import joinedload
 from app.models import User, UserCreate, Server, UserServerLink, Channel
 from app.core.security import get_password_hash, password_validation
 
@@ -57,6 +58,21 @@ def get_user_by_email(*, session: Session, email: str) -> User:
     """
     user = session.exec(select(User).where(User.email == email)).first()
     return user
+
+
+def get_server_by_id(*, session: Session, server_id: uuid.UUID) -> Server:
+    """
+    Get a server by ID.
+
+    Args:
+        session (Session): The database session to use for the operation.
+        server_id (uuid.UUID): The UUID of the server to retrieve.
+
+    Returns:
+        Server: The server object.
+    """
+    server = session.exec(select(Server).where(Server.id == server_id)).first()
+    return server
 
 
 def create_server(*, session: Session, user_id: uuid.UUID, server_name: str) -> Server | Exception:
