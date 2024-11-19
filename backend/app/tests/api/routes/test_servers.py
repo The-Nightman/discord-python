@@ -51,3 +51,15 @@ def test_rename_server(client: TestClient, normal_user_token_headers: dict[str, 
     assert updated_server is not None
     assert updated_server.name == "new_name"
     assert updated_server.id == server.id
+
+
+def test_delete_server(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
+    server = db.exec(select(Server)).first()
+    response = client.delete(f"/api/v1/servers/{server.id}/delete", headers=normal_user_token_headers)
+    assert response.status_code == 204
+
+    # Check that the server was deleted from the database
+    deleted_server = db.exec(select(Server).where(Server.id == server.id)).first()
+    assert deleted_server is None
+    user_link = db.exec(select(UserServerLink).where(UserServerLink.server_id == server.id)).first()
+    assert user_link is None
