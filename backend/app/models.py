@@ -1,4 +1,5 @@
 import uuid
+from typing import Union
 from enum import Enum as PyEnum
 from sqlalchemy import Index, Enum as SQLAEnum
 from datetime import datetime, timezone
@@ -8,7 +9,7 @@ from sqlmodel import Field, SQLModel, Relationship, Column
 
 # Shared properties
 class UserBase(SQLModel):
-    username: str = Field(max_length=100,index=True, nullable=False)
+    username: str = Field(max_length=100, index=True, nullable=False)
     email: EmailStr = Field(unique=True, index=True, max_length=255)
     is_super_admin: bool = False
 
@@ -62,6 +63,7 @@ class Server(ServerBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     channels: list["Channel"] = Relationship(back_populates="server")
     members: list["UserServerLink"] = Relationship(back_populates="server")
+    invites: list["ServerInvite"] = Relationship(back_populates="server")
 
 
 class ServerPublic(ServerBase):
@@ -69,6 +71,42 @@ class ServerPublic(ServerBase):
     name: str
     channels: list["Channel"]
     members: list["UserServerLink"]
+
+
+# Shared properties
+class ServerInviteBase(SQLModel):
+    server_id: uuid.UUID = Field(foreign_key="server.id", nullable=False)
+    invite_code: str = Field(max_length=8, nullable=False)
+    expires_at: int = Field(default_factory=lambda: int(
+        datetime.now(timezone.utc).timestamp()) + 604800, nullable=False)
+    uses: int = Field(default=0, nullable=False)
+
+
+# Properties to receive via API on creation
+class ServerInviteCreate(ServerInviteBase):
+    pass
+
+
+class ServerInvite(ServerInviteBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    server_id: uuid.UUID = Field(foreign_key="server.id", nullable=False)
+    invite_code: str = Field(max_length=8, nullable=False)
+    creator_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
+    created_at: int = Field(default_factory=lambda: int(
+        datetime.now(timezone.utc).timestamp()), nullable=False)
+    server: "Server" = Relationship(back_populates="invites")
+
+    @property
+    def server_name(self) -> str:
+        return self.server.name
+
+
+class ServerInviteReadPublic(ServerInviteBase):
+    server_id: uuid.UUID
+    invite_code: str
+    server_name: str
+    expires_at: int
+    uses: int
 
 
 # Define the accepted user roles
@@ -84,21 +122,23 @@ class UserServerLink(SQLModel, table=True):
     server_id: uuid.UUID = Field(foreign_key="server.id", primary_key=True)
 
     # User's role in the server
-    role: UserRole = Field(sa_column=Column(SQLAEnum(UserRole), default=UserRole.MEMBER, nullable=False))
+    role: UserRole = Field(sa_column=Column(
+        SQLAEnum(UserRole), default=UserRole.MEMBER, nullable=False))
 
     # User's join date
-    joined_at: int = Field(default_factory=lambda: int(datetime.now(timezone.utc).timestamp()), nullable=False)
-    
+    joined_at: int = Field(default_factory=lambda: int(
+        datetime.now(timezone.utc).timestamp()), nullable=False)
+
     user: User = Relationship(back_populates="servers")
     server: Server = Relationship(back_populates="members")
 
     # Ensure that each server has only one owner
     __table_args__ = (
         Index(
-            'unique_server_owner', # Index name
-            'server_id', # Column to index
-            unique=True, # Ensure uniqueness
-            postgresql_where=(role == UserRole.OWNER)), # Only index rows where the user is an owner
+            'unique_server_owner',  # Index name
+            'server_id',  # Column to index
+            unique=True,  # Ensure uniqueness
+            postgresql_where=(role == UserRole.OWNER)),  # Only index rows where the user is an owner
     )
 
 
@@ -111,7 +151,8 @@ class ChannelType(str, PyEnum):
 # Shared properties
 class ChannelBase(SQLModel):
     name: str = Field(max_length=100, nullable=False)
-    type: ChannelType = Field(sa_column=Column(SQLAEnum(ChannelType), nullable=False))
+    type: ChannelType = Field(sa_column=Column(
+        SQLAEnum(ChannelType), nullable=False))
 
 
 # Properties to receive via API on creation
@@ -130,7 +171,8 @@ class Channel(ChannelBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     server_id: uuid.UUID = Field(foreign_key="server.id", nullable=False)
     server: Server = Relationship(back_populates="channels")
-    messages: list["Message"] = Relationship(back_populates="channel", cascade_delete=True)
+    messages: list["Message"] = Relationship(
+        back_populates="channel", cascade_delete=True)
 
 
 # Shared properties
@@ -152,7 +194,8 @@ class MessageUpdate(MessageBase):
 class Message(MessageBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     author_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
-    channel_id: uuid.UUID = Field(foreign_key="channel.id", nullable=False, ondelete="CASCADE")
+    channel_id: uuid.UUID = Field(
+        foreign_key="channel.id", nullable=False, ondelete="CASCADE")
     channel: Channel = Relationship(back_populates="messages")
 
 
