@@ -64,6 +64,13 @@ class Server(ServerBase, table=True):
     members: list["UserServerLink"] = Relationship(back_populates="server")
 
 
+class ServerPublic(ServerBase):
+    id: uuid.UUID
+    name: str
+    channels: list["Channel"]
+    members: list["UserServerLink"]
+
+
 # Define the accepted user roles
 class UserRole(str, PyEnum):
     OWNER = "owner"
