@@ -130,7 +130,7 @@ class Channel(ChannelBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     server_id: uuid.UUID = Field(foreign_key="server.id", nullable=False)
     server: Server = Relationship(back_populates="channels")
-    messages: list["Message"] = Relationship(back_populates="channel")
+    messages: list["Message"] = Relationship(back_populates="channel", cascade_delete=True)
 
 
 # Shared properties
@@ -152,7 +152,7 @@ class MessageUpdate(MessageBase):
 class Message(MessageBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     author_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
-    channel_id: uuid.UUID = Field(foreign_key="channel.id", nullable=False)
+    channel_id: uuid.UUID = Field(foreign_key="channel.id", nullable=False, ondelete="CASCADE")
     channel: Channel = Relationship(back_populates="messages")
 
 
