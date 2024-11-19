@@ -59,7 +59,7 @@ def get_user_by_email(*, session: Session, email: str) -> User:
     return user
 
 
-def create_server(*, session: Session, user_id: uuid.UUID, server_name: str) -> Server:
+def create_server(*, session: Session, user_id: uuid.UUID, server_name: str) -> Server | Exception:
     """
     Create a new server with default channels and link the user as the owner.
 
@@ -100,3 +100,44 @@ def create_server(*, session: Session, user_id: uuid.UUID, server_name: str) -> 
         # Rollback the transaction if an error occurs so nothing is saved to the database
         session.rollback()
         raise e
+
+
+def user_is_owner(*, session: Session, user_id: uuid.UUID, server_id: uuid.UUID) -> bool:
+    """
+    Check if a user is the owner of a server.
+
+    Args:
+        session (Session): The database session to use for the operation.
+        user_id (uuid.UUID): The UUID of the user to check.
+        server_id (uuid.UUID): The UUID of the server to check.
+
+    Returns:
+        bool: True if the user is the owner of the server, False otherwise.
+    """
+    user_server_link = session.exec(select(UserServerLink).where(
+        UserServerLink.user_id == user_id and UserServerLink.server_id == server_id)).first()
+
+    if not user_server_link:
+        return False
+
+    return user_server_link.role == "owner"
+
+
+def update_server_name(*, session: Session, server_id: Server, name_in: str) -> Server | None:
+    """
+    Update the name of a server in the database.
+
+    Args:
+        session (Session): The database session to use for the update.
+        server_id (Server): The ID of the server to update.
+        name_in (str): The new name to assign to the server.
+
+    Returns:
+        Server | None: The updated server object if the update was successful, otherwise None.
+    """
+    server = session.get(Server, server_id)
+    server.name = name_in
+    session.add(server)
+    session.commit()
+    session.refresh(server)
+    return server
