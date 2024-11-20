@@ -90,10 +90,9 @@ def test_create_invite(client: TestClient, normal_user_token_headers: dict[str, 
 
 
 def test_join_server(client: TestClient, super_admin_token_headers: dict[str, str], db: Session):
-    user = db.exec(select(User)).first()
-
+    user = crud.get_user_by_email(session=db, email=settings.FIRST_SUPERUSER)
     server = db.exec(select(Server)).first()
-    invite = db.exec(select(ServerInvite)).first()
+    invite = db.exec(select(ServerInvite).where(ServerInvite.server_id == server.id)).first()
     response = client.post(
         f"/api/v1/servers/{server.id}/join/?invite_code={invite.invite_code}", headers=super_admin_token_headers)
 
@@ -109,6 +108,19 @@ def test_join_server(client: TestClient, super_admin_token_headers: dict[str, st
     # This is failing as for some reason the user added in the user register test is being passed through the endpoint no matter what
     assert membership.user_id == user.id
     assert membership.role == "member"
+
+
+def test_leave_server(client: TestClient, super_admin_token_headers: dict[str, str], db: Session):
+    user = crud.get_user_by_email(session=db, email=settings.FIRST_SUPERUSER)
+    server = db.exec(select(Server)).first()
+    response = client.delete(
+        f"/api/v1/servers/{server.id}/leave", headers=super_admin_token_headers)
+    assert response.status_code == 204
+
+    # Check that the user was removed from the server in the database
+    membership = db.exec(select(UserServerLink).where(
+        UserServerLink.server_id == server.id).where(UserServerLink.user_id == user.id)).first()
+    assert membership is None
 
 
 def test_delete_server(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
