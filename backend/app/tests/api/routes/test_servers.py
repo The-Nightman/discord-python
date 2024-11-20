@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 from app.core.config import settings
 from app import crud
-from app.models import Server, UserServerLink, ServerInvite
+from app.models import Server, UserServerLink, ServerInvite, User
 from app.tests.utils import utils
 import re
 
@@ -23,8 +23,8 @@ def test_create_server(client: TestClient, normal_user_token_headers: dict[str, 
     assert server.members[0].user_id == owner_user.id
 
     # Check that the owner has the owner role and is linked to the server
-    user_link = db.exec(select(UserServerLink).where(
-        UserServerLink.server_id == server.id and UserServerLink.user_id == owner_user.id)).first()
+    user_link = db.exec(select(UserServerLink).where(UserServerLink.server_id == server.id).where(
+        UserServerLink.user_id == owner_user.id)).first()
     assert user_link is not None
     assert user_link.user_id == owner_user.id
     assert user_link.server_id == server.id
@@ -89,6 +89,28 @@ def test_create_invite(client: TestClient, normal_user_token_headers: dict[str, 
     assert invite.server_id == server.id
 
 
+def test_join_server(client: TestClient, super_admin_token_headers: dict[str, str], db: Session):
+    user = db.exec(select(User)).first()
+
+    server = db.exec(select(Server)).first()
+    invite = db.exec(select(ServerInvite)).first()
+    response = client.post(
+        f"/api/v1/servers/{server.id}/join/?invite_code={invite.invite_code}", headers=super_admin_token_headers)
+
+    assert response.status_code == 204
+    # Check that the user was added to the server in the database
+
+    membership = db.exec(select(UserServerLink).where(
+        UserServerLink.server_id == server.id).where(UserServerLink.user_id == user.id)).first()
+
+    assert membership is not None
+    assert membership.server_id == server.id
+
+    # This is failing as for some reason the user added in the user register test is being passed through the endpoint no matter what
+    assert membership.user_id == user.id
+    assert membership.role == "member"
+
+
 def test_delete_server(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
     server = db.exec(select(Server)).first()
     response = client.delete(
@@ -100,5 +122,5 @@ def test_delete_server(client: TestClient, normal_user_token_headers: dict[str, 
         Server.id == server.id)).first()
     assert deleted_server is None
     user_link = db.exec(select(UserServerLink).where(
-        UserServerLink.server_id == server.id)).first()
-    assert user_link is None
+        UserServerLink.server_id == server.id)).all()
+    assert len(user_link) == 0
