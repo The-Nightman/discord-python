@@ -258,3 +258,19 @@ def delete_server_by_id(*, session: Session, server_id: uuid.UUID) -> None:
         raise e
     finally:
         session.close()
+
+
+def remove_user_from_server(*, session: Session, user_id: uuid.UUID, server_id: uuid.UUID) -> None:
+    """
+    Remove a user from a server.
+
+    Args:
+        session (Session): The database session to use for the operation.
+        user_id (uuid.UUID): The UUID of the user to remove.
+        server_id (uuid.UUID): The UUID of the server to remove the user from.
+    """
+    user_server_link = session.exec(select(UserServerLink).where(
+        UserServerLink.user_id == user_id).where(UserServerLink.server_id == server_id)).first()
+    session.delete(user_server_link)
+    session.commit()
+    return None
