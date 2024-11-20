@@ -123,6 +123,22 @@ def test_leave_server(client: TestClient, super_admin_token_headers: dict[str, s
     assert membership is None
 
 
+def test_owner_cannot_leave_server(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
+    user = crud.get_user_by_email(session=db, email=settings.TEST_USER) # normal_user_token_headers uses the test user as is set in conftest.py
+    server = db.exec(select(Server)).first()
+    response = client.delete(
+        f"/api/v1/servers/{server.id}/leave", headers=normal_user_token_headers)
+    assert response.status_code == 403
+
+    # Check that the user was not removed from the server in the database
+    membership = db.exec(select(UserServerLink).where(
+        UserServerLink.server_id == server.id).where(UserServerLink.user_id == user.id)).first()
+    assert membership is not None
+    assert membership.server_id == server.id
+    assert membership.user_id == user.id
+    assert membership.role == "owner"
+
+
 def test_delete_server(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
     server = db.exec(select(Server)).first()
     response = client.delete(
