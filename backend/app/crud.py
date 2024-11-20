@@ -1,6 +1,5 @@
 import uuid
-import random
-import string
+from datetime import datetime, timezone
 from sqlmodel import Session, select, delete
 from app.models import User, UserCreate, Server, UserServerLink, Channel, ServerInviteCreate, ServerInvite
 from app.core.security import get_password_hash, password_validation
@@ -132,7 +131,7 @@ def user_is_owner(*, session: Session, user_id: uuid.UUID, server_id: uuid.UUID)
         bool: True if the user is the owner of the server, False otherwise.
     """
     user_server_link = session.exec(select(UserServerLink).where(
-        UserServerLink.user_id == user_id and UserServerLink.server_id == server_id)).first()
+        UserServerLink.user_id == user_id).where(UserServerLink.server_id == server_id)).first()
 
     if not user_server_link:
         return False
@@ -180,6 +179,56 @@ def create_invite(*, session: Session, creator_id: uuid.UUID, invite_data: Serve
     session.commit()
     session.refresh(invite)
     return invite
+
+
+def join_server_by_invite_code(*, session: Session, user_id_in: uuid.UUID, server_id: uuid.UUID, invite_code: str) -> None:
+    """
+    Allows a user to join a server using an invite code.
+    Args:
+        session (Session): The database session to use for the operation.
+        user_id (uuid.UUID): The unique identifier of the user attempting to join the server.
+        server_id (uuid.UUID): The unique identifier of the server to join.
+        invite_code (str): The invite code used to join the server.
+    Raises:
+        Exception: If the invite code is invalid.
+        Exception: If the invite code has expired.
+        Exception: If the server with the given ID does not exist.
+        Exception: If there is an error during the database operation.
+    Returns:
+        None
+    """
+    invite = session.exec(select(ServerInvite).where(
+        ServerInvite.invite_code == invite_code).where(ServerInvite.server_id == server_id)).first()
+    if not invite:
+        raise Exception("The invite code is invalid.")
+
+    if invite.uses == 0:
+        raise Exception("The invite code has expired.")
+
+    if invite.expires_at < int(datetime.now(timezone.utc).timestamp()) and invite.expires_at > 0:
+        raise Exception("The invite code has expired.")
+
+    server = session.get(Server, invite.server_id)
+    if not server:
+        raise Exception("The server with this ID does not exist.")
+
+    membership = session.exec(select(UserServerLink).where(
+        UserServerLink.user_id == user_id_in).where(UserServerLink.server_id == server_id)).first()
+    if membership:
+        raise Exception("You are already a member of this server.")
+
+    try:
+        user_server_link = UserServerLink(
+            user_id=user_id_in, server_id=server.id, role="member")
+        session.add(user_server_link)
+        session.flush()
+        invite.uses -= 1
+        session.add(invite)
+        session.commit()
+        return None
+    except Exception as e:
+        session.rollback()
+        raise e
 
 
 def delete_server_by_id(*, session: Session, server_id: uuid.UUID) -> None:
