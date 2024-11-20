@@ -1,5 +1,6 @@
-from fastapi import APIRouter, status, HTTPException
-from typing import Any
+from fastapi import APIRouter, status, HTTPException, Query
+from typing import Any, Annotated
+from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from app.api.deps import SessionDep, CurrentUser
 from app.models import ServerCreate, ServerInviteCreate, ServerUpdate, ServerPublic
@@ -58,6 +59,30 @@ async def create_invite(session: SessionDep, current_user: CurrentUser, invite_d
     except SQLAlchemyError as e:
         raise HTTPException(
             status_code=500, detail="An unknown database error has occured, if this persists please contact support.")
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"An error occured: {str(e)}") from e
+
+
+class InviteParams(BaseModel):
+    invite_code: str
+
+
+@router.post("/{server_id}/join/", status_code=status.HTTP_204_NO_CONTENT)
+async def join_server(session: SessionDep, current_user: CurrentUser, server_id: str, filter_query: Annotated[InviteParams, Query()]) -> None:
+    """
+    Join a server using an invite code
+    """
+    try:
+        invite_code = filter_query.invite_code
+        crud.join_server_by_invite_code(
+            session=session, user_id_in=current_user.id, server_id=server_id, invite_code=invite_code)
+        return None
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=500, detail="An unknown database error has occured, if this persists please contact support.")
+    except HTTPException as e:
+        raise e
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"An error occured: {str(e)}") from e
