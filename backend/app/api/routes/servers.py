@@ -132,3 +132,25 @@ async def delete_server(session: SessionDep, current_user: CurrentUser, server_i
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"An error occured: {str(e)}") from e
+
+
+@router.delete("/{server_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+async def leave_server(session: SessionDep, current_user: CurrentUser, server_id: str) -> None:
+    """
+    Leave a server
+    """
+    try:
+        if crud.user_is_owner(session=session, user_id=current_user.id, server_id=server_id):
+            raise HTTPException(
+                status_code=403, detail="You cannot leave a server that you own.")
+        crud.remove_user_from_server(
+            session=session, user_id=current_user.id, server_id=server_id)
+        return None
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=500, detail="An unknown database error has occured, if this persists please contact support.")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"An error occured: {str(e)}") from e
