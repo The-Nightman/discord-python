@@ -178,3 +178,34 @@ async def leave_server(session: SessionDep, current_user: CurrentUser, server_id
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"An error occured: {str(e)}") from e
+
+
+class KickParams(BaseModel):
+    user_id: str
+
+
+@router.delete("/{server_id}/kick/", status_code=status.HTTP_204_NO_CONTENT)
+async def kick_user(session: SessionDep, current_user: CurrentUser, server_id: str, kick_params: Annotated[KickParams, Query()]) -> None:
+    """
+    Kick a user from a server, limited to admins and the server owner
+    """
+    try:
+        # Check if the user is an admin or the owner and the proceed to check if the user to be kicked is the owner
+        if crud.user_is_admin(session=session, user_id=current_user.id, server_id=server_id) == False:
+            raise HTTPException(
+                status_code=403, detail="You do not have permission to perform this operation.")
+        if crud.user_is_owner(session=session, user_id=kick_params.user_id, server_id=server_id):
+            raise HTTPException(
+                status_code=403, detail="You do not have permission to perform this operation.")
+
+        crud.remove_user_from_server(
+            session=session, user_id=kick_params.user_id, server_id=server_id)
+        return None
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=500, detail="An unknown database error has occured, if this persists please contact support.")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"An error occured: {str(e)}") from e
