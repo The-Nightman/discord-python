@@ -92,7 +92,8 @@ def test_create_invite(client: TestClient, normal_user_token_headers: dict[str, 
 def test_join_server(client: TestClient, super_admin_token_headers: dict[str, str], db: Session):
     user = crud.get_user_by_email(session=db, email=settings.FIRST_SUPERUSER)
     server = db.exec(select(Server)).first()
-    invite = db.exec(select(ServerInvite).where(ServerInvite.server_id == server.id)).first()
+    invite = db.exec(select(ServerInvite).where(
+        ServerInvite.server_id == server.id)).first()
     response = client.post(
         f"/api/v1/servers/{server.id}/join/?invite_code={invite.invite_code}", headers=super_admin_token_headers)
 
@@ -110,6 +111,60 @@ def test_join_server(client: TestClient, super_admin_token_headers: dict[str, st
     assert membership.role == "member"
 
 
+def test_promote_user(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
+    server = db.exec(select(Server)).first()
+    user = crud.get_user_by_email(session=db, email=settings.FIRST_SUPERUSER)
+
+    data = {
+        "user_id": str(user.id),
+        "new_role": "admin"}
+    response = client.patch(
+        f"/api/v1/servers/{server.id}/promote-user", headers=normal_user_token_headers, json=data)
+    assert response.status_code == 204
+
+    # Check that the user was promoted in the database
+    updated_user_link = db.exec(select(UserServerLink).where(
+        UserServerLink.server_id == server.id).where(UserServerLink.user_id == user.id)).first()
+    assert updated_user_link is not None
+    assert updated_user_link.role == "admin"
+
+
+def test_demote_user_to_member(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
+    server = db.exec(select(Server)).first()
+    user = crud.get_user_by_email(session=db, email=settings.FIRST_SUPERUSER)
+
+    data = {
+        "user_id": str(user.id),
+        "new_role": "member"}
+    response = client.patch(
+        f"/api/v1/servers/{server.id}/promote-user", headers=normal_user_token_headers, json=data)
+    assert response.status_code == 204
+
+    # Check that the user was demoted in the database
+    updated_user_link = db.exec(select(UserServerLink).where(
+        UserServerLink.server_id == server.id).where(UserServerLink.user_id == user.id)).first()
+    assert updated_user_link is not None
+    assert updated_user_link.role == "member"
+
+
+def test_cannot_promote_owner(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
+    server = db.exec(select(Server)).first()
+    user = crud.get_user_by_email(session=db, email=settings.TEST_USER)
+
+    data = {
+        "user_id": str(user.id),
+        "new_role": "admin"}
+    response = client.patch(
+        f"/api/v1/servers/{server.id}/promote-user", headers=normal_user_token_headers, json=data)
+    assert response.status_code == 403
+
+    # Check that the user was not promoted in the database
+    updated_user_link = db.exec(select(UserServerLink).where(
+        UserServerLink.server_id == server.id).where(UserServerLink.user_id == user.id)).first()
+    assert updated_user_link is not None
+    assert updated_user_link.role == "owner"
+
+
 def test_leave_server(client: TestClient, super_admin_token_headers: dict[str, str], db: Session):
     user = crud.get_user_by_email(session=db, email=settings.FIRST_SUPERUSER)
     server = db.exec(select(Server)).first()
@@ -124,7 +179,8 @@ def test_leave_server(client: TestClient, super_admin_token_headers: dict[str, s
 
 
 def test_owner_cannot_leave_server(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
-    user = crud.get_user_by_email(session=db, email=settings.TEST_USER) # normal_user_token_headers uses the test user as is set in conftest.py
+    # normal_user_token_headers uses the test user as is set in conftest.py
+    user = crud.get_user_by_email(session=db, email=settings.TEST_USER)
     server = db.exec(select(Server)).first()
     response = client.delete(
         f"/api/v1/servers/{server.id}/leave", headers=normal_user_token_headers)
