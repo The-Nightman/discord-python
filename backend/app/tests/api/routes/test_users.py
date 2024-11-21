@@ -3,7 +3,7 @@ from app.core.config import settings
 
 
 def test_read_users_me(client: TestClient, normal_user_token_headers: dict[str, str]):
-    response = client.get("/api/v1/users/my-profile",
+    response = client.get(f"{settings.API_V1_STR}/users/my-profile",
                           headers=normal_user_token_headers)
     current_user = response.json()
     assert response.status_code == 200

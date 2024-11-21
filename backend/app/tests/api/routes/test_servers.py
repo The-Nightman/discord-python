@@ -9,7 +9,7 @@ import re
 
 def test_create_server(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
     owner_user = crud.get_user_by_email(session=db, email=settings.TEST_USER)
-    response = client.post("/api/v1/servers/create",
+    response = client.post(f"{settings.API_V1_STR}/servers/create",
                            headers=normal_user_token_headers, json={"name": "test_server"})
     server_response = response.json()
     assert response.status_code == 201
@@ -34,7 +34,7 @@ def test_create_server(client: TestClient, normal_user_token_headers: dict[str, 
 def test_get_server_by_id(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
     server = db.exec(select(Server)).first()
     response = client.get(
-        f"/api/v1/servers/{server.id}", headers=normal_user_token_headers)
+        f"{settings.API_V1_STR}/servers/{server.id}", headers=normal_user_token_headers)
     server_response = response.json()
     assert response.status_code == 200
     assert server_response["name"] == server.name
@@ -46,7 +46,7 @@ def test_get_server_by_id(client: TestClient, normal_user_token_headers: dict[st
 def test_rename_server(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
     # Currently reads the server created in the previous test, fails if run alone, will be refactored later
     server = db.exec(select(Server)).first()
-    response = client.patch(f"/api/v1/servers/{server.id}/update",
+    response = client.patch(f"{settings.API_V1_STR}/servers/{server.id}/update",
                             headers=normal_user_token_headers, json={"name": "new_name"})
     server_response = response.json()
     assert response.status_code == 200
@@ -66,7 +66,7 @@ def test_create_invite(client: TestClient, normal_user_token_headers: dict[str, 
     invite_data = {"server_id": str(server.id), "invite_code": utils.random_lower_string(8),
                    "expires_at": 0, "uses": 5}
     response = client.post(
-        f"/api/v1/servers/{server.id}/invite", headers=normal_user_token_headers, json=invite_data)
+        f"{settings.API_V1_STR}/servers/{server.id}/invite", headers=normal_user_token_headers, json=invite_data)
     invite_response = response.json()
     assert response.status_code == 201
     assert "invite_code" in invite_response
@@ -95,7 +95,7 @@ def test_join_server(client: TestClient, super_admin_token_headers: dict[str, st
     invite = db.exec(select(ServerInvite).where(
         ServerInvite.server_id == server.id)).first()
     response = client.post(
-        f"/api/v1/servers/{server.id}/join/?invite_code={invite.invite_code}", headers=super_admin_token_headers)
+        f"{settings.API_V1_STR}/servers/{server.id}/join/?invite_code={invite.invite_code}", headers=super_admin_token_headers)
 
     assert response.status_code == 204
     # Check that the user was added to the server in the database
@@ -119,7 +119,7 @@ def test_promote_user(client: TestClient, normal_user_token_headers: dict[str, s
         "user_id": str(user.id),
         "new_role": "admin"}
     response = client.patch(
-        f"/api/v1/servers/{server.id}/promote-user", headers=normal_user_token_headers, json=data)
+        f"{settings.API_V1_STR}/servers/{server.id}/promote-user", headers=normal_user_token_headers, json=data)
     assert response.status_code == 204
 
     # Check that the user was promoted in the database
@@ -137,7 +137,7 @@ def test_demote_user_to_member(client: TestClient, normal_user_token_headers: di
         "user_id": str(user.id),
         "new_role": "member"}
     response = client.patch(
-        f"/api/v1/servers/{server.id}/promote-user", headers=normal_user_token_headers, json=data)
+        f"{settings.API_V1_STR}/servers/{server.id}/promote-user", headers=normal_user_token_headers, json=data)
     assert response.status_code == 204
 
     # Check that the user was demoted in the database
@@ -155,7 +155,7 @@ def test_cannot_promote_owner(client: TestClient, normal_user_token_headers: dic
         "user_id": str(user.id),
         "new_role": "admin"}
     response = client.patch(
-        f"/api/v1/servers/{server.id}/promote-user", headers=normal_user_token_headers, json=data)
+        f"{settings.API_V1_STR}/servers/{server.id}/promote-user", headers=normal_user_token_headers, json=data)
     assert response.status_code == 403
 
     # Check that the user was not promoted in the database
@@ -174,7 +174,7 @@ def test_member_role_cannot_kick(client: TestClient, db: Session):
         "email": "newtestuser@mail.com",
         "password": "password123"
     }
-    r = client.post(f"/api/v1/accounts/register", json=new_user_in).json()
+    r = client.post(f"{settings.API_V1_STR}/accounts/register", json=new_user_in).json()
     new_user_token = r["access_token"]
     new_user = crud.get_user_by_email(session=db, email=new_user_in["email"])
     invite = db.exec(select(ServerInvite).where(
@@ -194,7 +194,7 @@ def test_member_role_cannot_kick(client: TestClient, db: Session):
     assert target_user_initial_membership is not None
 
     response = client.delete(
-        f"/api/v1/servers/{str(invite.server_id)}/kick/?user_id={target_user.id}", headers={"Authorization": f"Bearer {new_user_token}"})
+        f"{settings.API_V1_STR}/servers/{str(invite.server_id)}/kick/?user_id={target_user.id}", headers={"Authorization": f"Bearer {new_user_token}"})
     assert response.status_code == 403
 
     # Check that the user was not removed from the server
@@ -210,7 +210,7 @@ def test_kick_user(client: TestClient, normal_user_token_headers: dict[str, str]
     new_user = crud.get_user_by_email(session=db, email="newtestuser@mail.com")
 
     response = client.delete(
-        f"/api/v1/servers/{str(server.id)}/kick/?user_id={new_user.id}", headers=normal_user_token_headers)
+        f"{settings.API_V1_STR}/servers/{str(server.id)}/kick/?user_id={new_user.id}", headers=normal_user_token_headers)
     assert response.status_code == 204
 
     # Check that the user was removed from the server in the database
@@ -223,7 +223,7 @@ def test_leave_server(client: TestClient, super_admin_token_headers: dict[str, s
     user = crud.get_user_by_email(session=db, email=settings.FIRST_SUPERUSER)
     server = db.exec(select(Server)).first()
     response = client.delete(
-        f"/api/v1/servers/{server.id}/leave", headers=super_admin_token_headers)
+        f"{settings.API_V1_STR}/servers/{server.id}/leave", headers=super_admin_token_headers)
     assert response.status_code == 204
 
     # Check that the user was removed from the server in the database
@@ -237,7 +237,7 @@ def test_owner_cannot_leave_server(client: TestClient, normal_user_token_headers
     user = crud.get_user_by_email(session=db, email=settings.TEST_USER)
     server = db.exec(select(Server)).first()
     response = client.delete(
-        f"/api/v1/servers/{server.id}/leave", headers=normal_user_token_headers)
+        f"{settings.API_V1_STR}/servers/{server.id}/leave", headers=normal_user_token_headers)
     assert response.status_code == 403
 
     # Check that the user was not removed from the server in the database
@@ -252,7 +252,7 @@ def test_owner_cannot_leave_server(client: TestClient, normal_user_token_headers
 def test_delete_server(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
     server = db.exec(select(Server)).first()
     response = client.delete(
-        f"/api/v1/servers/{server.id}/delete", headers=normal_user_token_headers)
+        f"{settings.API_V1_STR}/servers/{server.id}/delete", headers=normal_user_token_headers)
     assert response.status_code == 204
 
     # Check that the server was deleted from the database
