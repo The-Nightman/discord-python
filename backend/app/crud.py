@@ -1,4 +1,5 @@
 import uuid
+from fastapi import HTTPException
 from datetime import datetime, timezone
 from sqlmodel import Session, select, delete
 from app.models import User, UserCreate, Server, UserServerLink, Channel, ServerInviteCreate, ServerInvite
@@ -274,3 +275,74 @@ def remove_user_from_server(*, session: Session, user_id: uuid.UUID, server_id: 
     session.delete(user_server_link)
     session.commit()
     return None
+
+
+def user_is_admin(*, session: Session, user_id: uuid.UUID, server_id: uuid.UUID) -> bool:
+    """
+    Check if a user has admin privilages of a server. This includes both admin and owner roles.
+
+    Args:
+        session (Session): The database session to use for the operation.
+        user_id (uuid.UUID): The UUID of the user to check.
+        server_id (uuid.UUID): The UUID of the server to check.
+
+    Returns:
+        bool: True if the user is an admin of the server, False otherwise.
+    """
+    user_server_link = session.exec(select(UserServerLink).where(
+        UserServerLink.user_id == user_id).where(UserServerLink.server_id == server_id)).first()
+
+    if not user_server_link:
+        return False
+
+    return user_server_link.role == "admin" or user_server_link.role == "owner"
+
+
+def update_user_role(*, session: Session, server_id: uuid.UUID, admin_user_id: uuid.UUID, update_user_id: uuid.UUID, new_role: str) -> UserServerLink | None:
+    """
+    Update the role of a user in a server.
+
+    Args:
+        session (Session): The database session.
+        server_id (uuid.UUID): The ID of the server.
+        admin_user_id (uuid.UUID): The ID of the user performing the operation.
+        update_user_id (uuid.UUID): The ID of the user whose role is being updated.
+        new_role (str): The new role to assign to the user. Must be either "admin" or "member".
+
+    Returns:
+        UserServerLink | None: The updated UserServerLink object if the operation is successful, None otherwise.
+
+    Raises:
+        HTTPException: If the user performing the operation does not have the correct permissions.
+        HTTPException: If the user whose role is being updated is the server owner.
+        HTTPException: If the new role is invalid.
+        HTTPException: If the user is not a member of the server.
+    """
+
+    # Check if the user performing the operation has the correct permissions
+    if user_is_admin(session=session, user_id=admin_user_id, server_id=server_id) == False:
+        raise HTTPException(
+            status_code=403, detail="You do not have permission to perform this operation.")
+
+    if user_is_owner(session=session, user_id=update_user_id, server_id=server_id):
+        raise HTTPException(
+            status_code=403, detail="You cannot modify the role of the server owner.")
+
+    if new_role not in ["admin", "member"]:
+        raise HTTPException(status_code=403, detail="Invalid role.")
+
+    user_server_link = session.exec(select(UserServerLink).where(
+        UserServerLink.user_id == update_user_id).where(UserServerLink.server_id == server_id)).first()
+    if not user_server_link:
+        raise HTTPException(
+            status_code=403, detail="The user is not a member of this server.")
+
+    if new_role == "admin":
+        user_server_link.role = "admin"
+    if new_role == "member":
+        user_server_link.role = "member"
+
+    session.add(user_server_link)
+    session.commit()
+    session.refresh(user_server_link)
+    return user_server_link
