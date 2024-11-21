@@ -113,6 +113,30 @@ async def update_server(session: SessionDep, current_user: CurrentUser, server_i
             status_code=400, detail=f"An error occured: {str(e)}") from e
 
 
+class ServerUserPromote(BaseModel):
+    user_id: str
+    new_role: str
+
+
+@router.patch("/{server_id}/promote-user", status_code=status.HTTP_204_NO_CONTENT)
+async def update_role(session: SessionDep, current_user: CurrentUser, server_id: str, promotion_data: ServerUserPromote) -> None:
+    """
+    Update a user's role in a server, limited to the server owner
+    """
+    try:
+        crud.update_user_role(
+            session=session, server_id=server_id, admin_user_id=current_user.id, update_user_id=promotion_data.user_id, new_role=promotion_data.new_role)
+        return None
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=500, detail="An unknown database error has occured, if this persists please contact support.")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"An error occured: {str(e)}") from e
+
+
 @router.delete("/{server_id}/delete", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_server(session: SessionDep, current_user: CurrentUser, server_id: str) -> None:
     """
