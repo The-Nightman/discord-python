@@ -6,8 +6,8 @@ from faker import Faker
 fake = Faker()
 
 
-def random_lower_string() -> str:
-    return "".join(random.choices(string.ascii_lowercase, k=32))
+def random_lower_string(length: int) -> str:
+    return "".join(random.choices(string.ascii_lowercase, k=length))
 
 
 def random_username() -> str:

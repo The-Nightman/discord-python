@@ -6,8 +6,8 @@ from app.core.logger import logger
 from app.core.config import settings
 from app.core.db import init_db
 from app.api.deps import get_db
-from app.models import User, Server, UserServerLink, Message
-from app.tests.utils.users import inject_test_user, user_authentication_headers
+from app.models import User, Server, UserServerLink, Message, Channel, ServerInvite
+from app.tests.utils.users import inject_test_user, user_authentication_headers, super_admin_authentication_headers
 from sqlmodel import Session, create_engine, delete, SQLModel
 from sqlalchemy_utils import database_exists, create_database
 
@@ -33,11 +33,15 @@ def db() -> Generator[Session, None, None]:
         init_db(session)
         inject_test_user(session)
         yield session
+        statement = delete(UserServerLink)
+        session.exec(statement)
+        statement = delete(ServerInvite)
+        session.exec(statement)
         statement = delete(User)
         session.exec(statement)
-        statement = delete(Server)
+        statement = delete(Channel)
         session.exec(statement)
-        statement = delete(UserServerLink)
+        statement = delete(Server)
         session.exec(statement)
         statement = delete(Message)
         session.exec(statement)
@@ -60,3 +64,8 @@ def client(db: Session) -> Generator[TestClient, None, None]:
 @pytest.fixture(scope="module")
 def normal_user_token_headers(client: TestClient) -> dict[str, str]:
     return user_authentication_headers(client=client, email=settings.TEST_USER, password=settings.TEST_USER_PASSWORD)
+
+
+@pytest.fixture(scope="module")
+def super_admin_token_headers(client: TestClient) -> dict[str, str]:
+    return super_admin_authentication_headers(client=client)

@@ -40,3 +40,20 @@ def user_authentication_headers(*, client: TestClient, email: str, password: str
     response = r.json()
     token = response["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+def super_admin_authentication_headers(*, client: TestClient) -> dict[str, str]:
+    """
+    Authenticate a super admin user and return the authentication headers.
+    Args:
+        client (TestClient): The test client to use for making the request.
+    Returns:
+        dict[str, str]: A dictionary containing the authorization headers.
+    """
+    admin_data = {"username": settings.FIRST_SUPERUSER,
+                  "password": settings.FIRST_SUPERUSER_PASSWORD}
+
+    r = client.post(f"{settings.API_V1_STR}/accounts/login", data=admin_data)
+    response = r.json()
+    token = response["access_token"]
+    return {"Authorization": f"Bearer {token}"}
