@@ -187,7 +187,7 @@ def join_server_by_invite_code(*, session: Session, user_id_in: uuid.UUID, serve
     Allows a user to join a server using an invite code.
     Args:
         session (Session): The database session to use for the operation.
-        user_id (uuid.UUID): The unique identifier of the user attempting to join the server.
+        user_id_in (uuid.UUID): The unique identifier of the user attempting to join the server.
         server_id (uuid.UUID): The unique identifier of the server to join.
         invite_code (str): The invite code used to join the server.
     Raises:
