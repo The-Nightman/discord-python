@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 from app.core.config import settings
 from app import crud
-from app.models import Server, UserServerLink, ServerInvite, User
+from app.models import Server, UserServerLink, ServerInvite, UserRegister
 from app.tests.utils import utils
 import re
 
@@ -163,6 +163,60 @@ def test_cannot_promote_owner(client: TestClient, normal_user_token_headers: dic
         UserServerLink.server_id == server.id).where(UserServerLink.user_id == user.id)).first()
     assert updated_user_link is not None
     assert updated_user_link.role == "owner"
+
+
+def test_member_role_cannot_kick(client: TestClient, db: Session):
+    server = db.exec(select(Server)).first()
+
+    # Create a new user and add them to the server
+    new_user_in = {
+        "username": "new_test_user",
+        "email": "newtestuser@mail.com",
+        "password": "password123"
+    }
+    r = client.post(f"/api/v1/accounts/register", json=new_user_in).json()
+    new_user_token = r["access_token"]
+    new_user = crud.get_user_by_email(session=db, email=new_user_in["email"])
+    invite = db.exec(select(ServerInvite).where(
+        ServerInvite.server_id == server.id)).first()
+    crud.join_server_by_invite_code(
+        session=db, user_id_in=new_user.id, server_id=server.id, invite_code=invite.invite_code)
+    new_user_membership = db.exec(select(UserServerLink).where(
+        UserServerLink.server_id == server.id).where(UserServerLink.user_id == new_user.id)).first()
+    # Check that the user was added to the server through database
+    assert new_user_membership is not None
+
+    # Server admin users are not protected, at this stage this user is still present until later tests
+    target_user = crud.get_user_by_email(
+        session=db, email=settings.FIRST_SUPERUSER)
+    target_user_initial_membership = db.exec(select(UserServerLink).where(
+        UserServerLink.server_id == server.id).where(UserServerLink.user_id == target_user.id)).first()
+    assert target_user_initial_membership is not None
+
+    response = client.delete(
+        f"/api/v1/servers/{str(invite.server_id)}/kick/?user_id={target_user.id}", headers={"Authorization": f"Bearer {new_user_token}"})
+    assert response.status_code == 403
+
+    # Check that the user was not removed from the server
+    target_user_membership = db.exec(select(UserServerLink).where(
+        UserServerLink.server_id == server.id).where(UserServerLink.user_id == target_user.id)).first()
+    assert target_user_membership is not None
+
+
+def test_kick_user(client: TestClient, normal_user_token_headers: dict[str, str], db: Session):
+    server = db.exec(select(Server)).first()
+
+    # We need to use this user and they are added in a previous test so we'll just use the straight email from the test above
+    new_user = crud.get_user_by_email(session=db, email="newtestuser@mail.com")
+
+    response = client.delete(
+        f"/api/v1/servers/{str(server.id)}/kick/?user_id={new_user.id}", headers=normal_user_token_headers)
+    assert response.status_code == 204
+
+    # Check that the user was removed from the server in the database
+    membership = db.exec(select(UserServerLink).where(
+        UserServerLink.server_id == server.id).where(UserServerLink.user_id == new_user.id)).first()
+    assert membership is None
 
 
 def test_leave_server(client: TestClient, super_admin_token_headers: dict[str, str], db: Session):
